@@ -9,8 +9,27 @@ write checked functionality
 write editing functionality (not required as of now)
 write re-ordering functionality (not required as of now)
 
+/////////////////////////[Frontend Script]////////////////////////////
+
+// ENABLING USER TO PRESS ENTER TO ADD RECORD
+// ADDING CROSS BUTTON TO EVERY ELEMENT IN LIST 
+// ADDING CHECK BUTTON TO EVERY ELEMENT IN LIST, WHEN CLICKED 
+// FUNCTIONALITY OF CLOSE BUTTON, TO HIDE CURRENT LIST ITEM
+// CREATE A NEW LIST ITEM, WHEN "ADD" BUTTON CLICKED
+// FUNCTION TO ACCESS ADD ELEMENT
+// REMOVING REDUNDANCE, ADDING ONLY IF NOT PRESENT ALREADY
+
+/////////////////////////[ML Script]////////////////////////////
+
+// LINK TO YOUR MODE, PROVIDED BY TEACHABLE MACHINE EXPORT PANEL
+// MAIN PROCESSING LOOP
+// INITIALIZING MODEL, LOADING THE WEBCAM
+// RUN THE IMAGE THROUGH THE MODEL
+// ACTION AFTER PREDICTION
 
 */
+
+/////////////////////////[Frontend Script]////////////////////////////
 
 // ENABLING USER TO PRESS ENTER TO ADD RECORD
 const elem = document.getElementById("myInput");
@@ -21,7 +40,6 @@ elem.addEventListener("keypress", (event)=> {
       newElement();
     }
   });
-  
   
 // ADDING CROSS BUTTON TO EVERY ELEMENT IN LIST 
 var myNodelist = document.getElementsByTagName("li");
@@ -42,7 +60,7 @@ list.addEventListener('click', function(ev) {
   }
 }, false);
 
-// Function of close button, to hide the current list item
+// FUNCTIONALITY OF CLOSE BUTTON, TO HIDE CURRENT LIST ITEM
 var close = document.getElementsByClassName("close");
 var i;
 for (i = 0; i < close.length; i++) {
@@ -52,7 +70,7 @@ for (i = 0; i < close.length; i++) {
   }
 }
 
-// Create a new list item when clicking on the "Add" button
+// CREATE A NEW LIST ITEM, WHEN "ADD" BUTTON CLICKED
 function addElement(inputValue) {
   var li = document.createElement("li");
   var t = document.createTextNode(inputValue);
@@ -60,7 +78,7 @@ function addElement(inputValue) {
 
   if (inputValue === '') {
     // alert("You must write something!");
-    document.getElementById("myInput").placeholder = "Write Here Bro !!";
+    document.getElementById("myInput").placeholder = "Write Here Bro!";
   } else {
     document.getElementById("myUL").appendChild(li);
     document.getElementById("myInput").placeholder = "Title...";
@@ -82,10 +100,100 @@ function addElement(inputValue) {
   }
 }
 
-// Create a new list item when clicking on the "Add" button
+// FUNCTION TO ACCESS ADD ELEMENT
 function newElement() {
   var inputValue = document.getElementById("myInput").value;
   console.log('Your Input is "',inputValue,'"');
-  addElement(inputValue);
+  added = addElement(inputValue);
+
+  if (!added){
+    document.getElementById("myInput").placeholder = "Already Added!";
+    document.getElementById("myInput").value = "";
+  }
 }
 
+// REMOVING REDUNDANCE, ADDING ONLY IF NOT PRESENT ALREADY
+const allItems = new Set([])
+function addElementOnce(inputValue){
+  if (!allItems.has(inputValue)) { 
+    allItems.add(inputValue);
+    addElement(inputValue);
+    console.log('Adding Item',inputValue);
+    return true;
+  } else {
+    console.log('Item Already Present',inputValue)
+    return false;
+  }
+}
+
+/////////////////////////[ML Script]////////////////////////////
+
+// LINK TO YOUR MODE, PROVIDED BY TEACHABLE MACHINE EXPORT PANEL
+const URL = "https://teachablemachine.withgoogle.com/models/hBKYa4zJe/";
+let model, webcam, labelContainer, maxPredictions;
+
+// MAIN PROCESSING LOOP
+async function loop() {
+  webcam.update(); // FETCH THE NEW FRAME
+  await predict(); // FETCH THE PREDICTION
+  window.requestAnimationFrame(loop);
+}
+
+// INITIALIZING MODEL, LOADING THE WEBCAM
+async function init() {
+    const modelURL = URL + "model.json";
+    const metadataURL = URL + "metadata.json";
+
+    console.log('Please Wait! Loading the Model')
+    // LOADING MODEL AND METADATA
+    model = await tmImage.load(modelURL, metadataURL);
+    maxPredictions = model.getTotalClasses();
+    console.log('Model Loaded')
+
+    console.log('Loading Webcam')
+    // CONVENIENCE FUNCTION TO SETUP WEBCAM
+    const flip = true; // whether to flip the webcam
+    webcam = new tmImage.Webcam(200, 200, flip); // width, height, flip
+    await webcam.setup(); // request access to the webcam
+    await webcam.play();
+    console.log('Webcam Loaded')
+
+    window.requestAnimationFrame(loop);
+
+    // REMOVE START BUTTON, ONCE THE MODEL IS LOADED
+    document.getElementById("start_button").classList.add('removed');
+
+    // APPEND ELEMENTS TO DOM
+    document.getElementById("webcam-container").appendChild(webcam.canvas);
+    labelContainer = document.getElementById("label-container");
+    for (let i = 0; i < maxPredictions; i++) { 
+        // CREATING DIMS AS PER CLASSES
+        labelContainer.appendChild(document.createElement("div"));
+    }
+}
+
+
+// RUN THE IMAGE THROUGH THE MODEL
+async function predict() {
+    // PREDICT CAN ACCEPT (IMAGE, VIDEO, CANVAS HTML ELEMENT)
+    const prediction = await model.predict(webcam.canvas);
+
+    for (let i = 0; i < maxPredictions; i++) {
+        pred_class = prediction[i].className
+        pred_score = prediction[i].probability.toFixed(2)
+
+        action(pred_class, pred_score)
+        
+        const classPrediction = pred_class + ": " + pred_score;
+        console.log(classPrediction)
+
+        labelContainer.childNodes[i].innerHTML = classPrediction;
+    }
+}
+
+// ACTION AFTER PREDICTION
+function action(pred_class, pred_score){
+  if (pred_score>0.5){
+    addElementOnce(pred_class);
+  }
+}
