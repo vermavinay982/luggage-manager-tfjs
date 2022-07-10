@@ -9,8 +9,7 @@ write checked functionality
 write editing functionality (not required as of now)
 write re-ordering functionality (not required as of now)
 
-/////////////////////////[Frontend Script]////////////////////////////
-
+[Frontend Script]
 // ENABLING USER TO PRESS ENTER TO ADD RECORD
 // ADDING CROSS BUTTON TO EVERY ELEMENT IN LIST 
 // ADDING CHECK BUTTON TO EVERY ELEMENT IN LIST, WHEN CLICKED 
@@ -19,8 +18,7 @@ write re-ordering functionality (not required as of now)
 // FUNCTION TO ACCESS ADD ELEMENT
 // REMOVING REDUNDANCE, ADDING ONLY IF NOT PRESENT ALREADY
 
-/////////////////////////[ML Script]////////////////////////////
-
+[ML Script]
 // LINK TO YOUR MODE, PROVIDED BY TEACHABLE MACHINE EXPORT PANEL
 // MAIN PROCESSING LOOP
 // INITIALIZING MODEL, LOADING THE WEBCAM
@@ -30,13 +28,14 @@ write re-ordering functionality (not required as of now)
 */
 
 /////////////////////////[Frontend Script]////////////////////////////
+const allItems = new Set([])
 
 // ENABLING USER TO PRESS ENTER TO ADD RECORD
 const elem = document.getElementById("myInput");
 elem.addEventListener("keypress", (event)=> {
     // addElement(`${event.key}`);
     if (event.key === "Enter") { // key code of the keybord key
-      // event.preventDefault();
+      event.preventDefault();
       newElement();
     }
   });
@@ -44,7 +43,11 @@ elem.addEventListener("keypress", (event)=> {
 // ADDING CROSS BUTTON TO EVERY ELEMENT IN LIST 
 var myNodelist = document.getElementsByTagName("li");
 var i;
+var itemName;
 for (i = 0; i < myNodelist.length; i++) {
+  itemName = myNodelist[i].innerText
+  allItems.add(itemName);
+
   var span = document.createElement("SPAN");
   var txt = document.createTextNode("\u00D7");
   span.className = "close";
@@ -100,11 +103,18 @@ function addElement(inputValue) {
   }
 }
 
+//capitalize only the first letter of the string. 
+function capitalizeFirstLetter(string) {
+  return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+var added = false
 // FUNCTION TO ACCESS ADD ELEMENT
 function newElement() {
   var inputValue = document.getElementById("myInput").value;
   console.log('Your Input is "',inputValue,'"');
-  added = addElement(inputValue);
+
+  added = addElementOnce(inputValue);
 
   if (!added){
     document.getElementById("myInput").placeholder = "Already Added!";
@@ -113,8 +123,8 @@ function newElement() {
 }
 
 // REMOVING REDUNDANCE, ADDING ONLY IF NOT PRESENT ALREADY
-const allItems = new Set([])
 function addElementOnce(inputValue){
+  inputValue = capitalizeFirstLetter(inputValue);
   if (!allItems.has(inputValue)) { 
     allItems.add(inputValue);
     addElement(inputValue);
@@ -126,11 +136,38 @@ function addElementOnce(inputValue){
   }
 }
 
+function downloadTextFile(text, filename) {
+  var element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+  element.setAttribute('download', filename);
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+}
+
+function download_data(){
+  var text = '';
+  var itemArray = Array.from(allItems);
+  let item;
+
+  console.log("[[Showing the DATA Saved]]")
+  for(let i=0;i<itemArray.length;i++){
+    item = itemArray[i]
+    text += `${i+1}. ${item}\n`;
+  }
+
+  console.log(text)
+  downloadTextFile(text, 'My_Items.txt');
+}
 /////////////////////////[ML Script]////////////////////////////
 
 // LINK TO YOUR MODE, PROVIDED BY TEACHABLE MACHINE EXPORT PANEL
-const URL = "https://teachablemachine.withgoogle.com/models/hBKYa4zJe/";
+// const URL = "https://teachablemachine.withgoogle.com/models/hBKYa4zJe/"; //Mask Model
+const URL = "https://teachablemachine.withgoogle.com/models/PhQPhDmko/"; // Inventory Model
+
 let model, webcam, labelContainer, maxPredictions;
+let pred_class, pred_score;
 
 // MAIN PROCESSING LOOP
 async function loop() {
@@ -181,11 +218,10 @@ async function predict() {
     for (let i = 0; i < maxPredictions; i++) {
         pred_class = prediction[i].className
         pred_score = prediction[i].probability.toFixed(2)
-
-        action(pred_class, pred_score)
-        
         const classPrediction = pred_class + ": " + pred_score;
         console.log(classPrediction)
+
+        action(pred_class, pred_score);
 
         labelContainer.childNodes[i].innerHTML = classPrediction;
     }
@@ -193,7 +229,7 @@ async function predict() {
 
 // ACTION AFTER PREDICTION
 function action(pred_class, pred_score){
-  if (pred_score>0.5){
+  if (pred_score>0.9){
     addElementOnce(pred_class);
   }
 }
